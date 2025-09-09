@@ -159,7 +159,10 @@
         .amount.positive {
             color: #10b981;
         }
-        .amount.negative {
+        .amount.credit {
+            color: #10b981;
+        }
+        .amount.deduction {
             color: #ef4444;
         }
         .amount.large {
@@ -212,28 +215,24 @@
                         <div class="form-group">
                             <label for="currentPlan">Current Plan</label>
                             <select id="currentPlan">
-                                <option value="creator">Creator</option>
-                                <option value="hobbyist">Hobbyist</option>
-                                <option value="business">Business</option>
+                                <option value="hobbyist_monthly">Hobbyist Monthly ($24/editor/month)</option>
+                                <option value="hobbyist_annual">Hobbyist Annual ($144/editor/year)</option>
+                                <option value="creator_monthly">Creator Monthly ($35/editor/month)</option>
+                                <option value="creator_annual">Creator Annual ($288/editor/year)</option>
+                                <option value="business_monthly">Business Monthly ($65/editor/month)</option>
+                                <option value="business_annual">Business Annual ($600/editor/year)</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label for="currentEditors">Current Editors</label>
                             <div class="input-with-buttons">
                                 <button type="button" class="counter-btn" onclick="changeEditors('current', -1)">−</button>
-                                <input type="number" id="currentEditors" value="2" min="1" max="100" readonly>
+                                <input type="number" id="currentEditors" value="1" min="1" max="100" readonly>
                                 <button type="button" class="counter-btn" onclick="changeEditors('current', 1)">+</button>
                             </div>
                         </div>
                     </div>
                     <div class="form-row">
-                        <div class="form-group">
-                            <label for="currentBilling">Current Billing</label>
-                            <select id="currentBilling">
-                                <option value="monthly">Monthly</option>
-                                <option value="annual">Annual</option>
-                            </select>
-                        </div>
                         <div class="form-group">
                             <label for="lastInvoiceDate">Last Invoice Date</label>
                             <input type="date" id="lastInvoiceDate">
@@ -241,32 +240,28 @@
                     </div>
                 </div>
                 
-                <div class="card">
+                <div class="card" style="margin-top: 30px;">
                     <h2>Proposed Changes</h2>
                     <div class="form-row">
                         <div class="form-group">
                             <label for="newPlan">New Plan</label>
                             <select id="newPlan">
-                                <option value="business">Business</option>
-                                <option value="creator">Creator</option>
-                                <option value="hobbyist">Hobbyist</option>
+                                <option value="hobbyist_monthly">Hobbyist Monthly ($24/editor/month)</option>
+                                <option value="hobbyist_annual">Hobbyist Annual ($144/editor/year)</option>
+                                <option value="creator_monthly">Creator Monthly ($35/editor/month)</option>
+                                <option value="creator_annual">Creator Annual ($288/editor/year)</option>
+                                <option value="business_monthly">Business Monthly ($65/editor/month)</option>
+                                <option value="business_annual">Business Annual ($600/editor/year)</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label for="newEditors">New Editors</label>
                             <div class="input-with-buttons">
                                 <button type="button" class="counter-btn" onclick="changeEditors('new', -1)">−</button>
-                                <input type="number" id="newEditors" value="3" min="1" max="100" readonly>
+                                <input type="number" id="newEditors" value="1" min="1" max="100" readonly>
                                 <button type="button" class="counter-btn" onclick="changeEditors('new', 1)">+</button>
                             </div>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="newBilling">New Billing Schedule</label>
-                        <select id="newBilling">
-                            <option value="annual">Annual</option>
-                            <option value="monthly">Monthly</option>
-                        </select>
                     </div>
                     
                     <button class="calculate-btn" onclick="calculateCosts()">Calculate Billing Changes</button>
@@ -282,93 +277,148 @@
 
     <script>
         const planPrices = {
-            hobbyist: { monthly: 12, annual: 144 },
-            creator: { monthly: 35, annual: 300 },
-            business: { monthly: 50, annual: 600 }
+            hobbyist_monthly: { price: 24, billing: 'monthly', tier: 'hobbyist' },
+            hobbyist_annual: { price: 144, billing: 'annual', tier: 'hobbyist' },
+            creator_monthly: { price: 35, billing: 'monthly', tier: 'creator' },
+            creator_annual: { price: 288, billing: 'annual', tier: 'creator' },
+            business_monthly: { price: 65, billing: 'monthly', tier: 'business' },
+            business_annual: { price: 600, billing: 'annual', tier: 'business' }
         };
 
         function calculateCosts() {
             const currentPlan = document.getElementById('currentPlan').value;
             const currentEditors = parseInt(document.getElementById('currentEditors').value);
-            const currentBilling = document.getElementById('currentBilling').value;
-            const lastInvoiceDate = new Date(document.getElementById('lastInvoiceDate').value);
+            const lastInvoiceDateInput = document.getElementById('lastInvoiceDate').value;
+            if (!lastInvoiceDateInput) {
+                alert('Please select a last invoice date');
+                return;
+            }
+            
+            const lastInvoiceDate = new Date(lastInvoiceDateInput);
+            if (isNaN(lastInvoiceDate.getTime())) {
+                alert('Please enter a valid date');
+                return;
+            }
+            
             const today = new Date();
             const timeDiff = today - lastInvoiceDate;
             const daysInCycle = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+            
+            if (daysInCycle < 0) {
+                alert('Last invoice date cannot be in the future');
+                return;
+            }
+            if (daysInCycle > 400) {
+                alert('Last invoice date seems too far in the past. Please check the date.');
+                return;
+            }
             
             const newPlan = document.getElementById('newPlan').value;
             const newEditors = parseInt(document.getElementById('newEditors').value);
-            const newBilling = document.getElementById('newBilling').value;
 
-            const currentMonthlyRate = planPrices[currentPlan].monthly * currentEditors;
-            const newMonthlyRate = planPrices[newPlan].monthly * newEditors;
+            const currentPlanInfo = planPrices[currentPlan];
+            const newPlanInfo = planPrices[newPlan];
             
-            const daysLeft = 30 - daysInCycle;
-            const prorationFactor = daysLeft / 30;
+            const currentRate = currentPlanInfo.price * currentEditors;
+            const newRate = newPlanInfo.price * newEditors;
+            
+            // Calculate next billing date (same day next month/year)
+            const nextBillingDate = new Date(lastInvoiceDate);
+            if (currentPlanInfo.billing === 'annual') {
+                nextBillingDate.setFullYear(nextBillingDate.getFullYear() + 1);
+            } else {
+                nextBillingDate.setMonth(nextBillingDate.getMonth() + 1);
+            }
+            
+            // Handle edge cases for months with different day counts
+            if (nextBillingDate.getDate() !== lastInvoiceDate.getDate()) {
+                nextBillingDate.setDate(0); // Go to last day of previous month
+            }
+            
+            // Calculate actual days in this billing cycle
+            const cycleDays = Math.floor((nextBillingDate - lastInvoiceDate) / (1000 * 60 * 60 * 24));
+            const daysLeft = Math.floor((nextBillingDate - today) / (1000 * 60 * 60 * 24));
+            const prorationFactor = daysLeft / cycleDays;
 
             let immediateCharge = 0;
             let nextBillAmount = 0;
-            let timing = '';
+            let timing = 'Takes effect immediately';
             let explanation = '';
+            let creditInfo = null;
 
-            const isUpgrade = (newPlan !== currentPlan && planPrices[newPlan].monthly > planPrices[currentPlan].monthly) || 
-                             (newEditors > currentEditors);
-            const isBillingChange = newBilling !== currentBilling;
+            // All upgrades are immediate - simplified logic
+            const isUpgrade = (currentPlan !== newPlan) || (currentEditors !== newEditors);
 
-            if (isUpgrade || (isBillingChange && isUpgrade)) {
-                timing = 'Takes effect immediately';
+            if (isUpgrade) {
+                // Calculate credit for unused portion of current plan
+                const unusedCredit = currentRate * prorationFactor;
                 
-                if (newBilling === 'annual' && currentBilling === 'monthly') {
-                    const annualCost = planPrices[newPlan].annual * newEditors;
-                    const currentMonthlyCost = currentMonthlyRate;
-                    const creditForUnusedDays = currentMonthlyCost * prorationFactor;
-                    immediateCharge = annualCost - creditForUnusedDays;
-                    nextBillAmount = annualCost;
-                    explanation = `Switching to annual billing with upgrade. You get a credit of $${creditForUnusedDays.toFixed(2)} for unused days.`;
+                // Calculate prorated cost for new plan for remaining days
+                const newProrated = newRate * prorationFactor;
+                
+                creditInfo = {
+                    totalCredit: unusedCredit,
+                    appliedToNewInvoice: Math.min(unusedCredit, newProrated),
+                    remainingCredit: Math.max(0, unusedCredit - newProrated)
+                };
+                
+                immediateCharge = Math.max(0, newProrated - unusedCredit);
+                nextBillAmount = newRate;
+                
+                if (unusedCredit >= newProrated) {
+                    explanation = `Change takes effect immediately. You receive a credit of $${unusedCredit.toFixed(2)} for your unused time. After applying $${newProrated.toFixed(2)} for the new plan, you have $${(unusedCredit - newProrated).toFixed(2)} in credit for future bills.`;
                 } else {
-                    const rateDifference = newMonthlyRate - currentMonthlyRate;
-                    immediateCharge = rateDifference * prorationFactor;
-                    nextBillAmount = newBilling === 'annual' ? planPrices[newPlan].annual * newEditors : newMonthlyRate;
-                    explanation = `Prorated charge for the remaining ${daysLeft} days of your current cycle.`;
+                    explanation = `Change takes effect immediately. You receive a credit of $${unusedCredit.toFixed(2)} for unused time and are charged $${immediateCharge.toFixed(2)} for the upgrade.`;
                 }
-            } else if (!isUpgrade && !isBillingChange) {
-                timing = 'Takes effect at end of current billing cycle';
+            } else {
+                explanation = 'No changes detected.';
                 immediateCharge = 0;
-                nextBillAmount = newMonthlyRate;
-                explanation = 'Downgrade will occur at the end of your current billing cycle. No immediate charges.';
-            } else if (isBillingChange && !isUpgrade) {
-                timing = 'Takes effect at start of next billing cycle';
-                immediateCharge = 0;
-                nextBillAmount = newBilling === 'annual' ? planPrices[newPlan].annual * newEditors : newMonthlyRate;
-                explanation = 'Billing schedule change without upgrade takes effect at the next renewal.';
+                nextBillAmount = currentRate;
+                creditInfo = { totalCredit: 0, appliedToNewInvoice: 0, remainingCredit: 0 };
             }
 
-            displayResults(timing, immediateCharge, nextBillAmount, explanation, currentMonthlyRate, newMonthlyRate, isUpgrade);
+            displayResults(timing, immediateCharge, nextBillAmount, explanation, currentRate, newRate, isUpgrade, currentPlanInfo.billing, creditInfo, daysLeft, daysInCycle, cycleDays);
         }
 
-        function displayResults(timing, immediateCharge, nextBillAmount, explanation, currentRate, newRate, isUpgrade) {
+        function displayResults(timing, immediateCharge, nextBillAmount, explanation, currentRate, newRate, isUpgrade, currentBillingValue, creditInfo, daysLeft, daysInCycle, cycleDays) {
             const resultsDiv = document.getElementById('results');
             const resultsContent = document.getElementById('resultsContent');
             
-            const lastInvoiceDate = new Date(document.getElementById('lastInvoiceDate').value);
-            const today = new Date();
-            const timeDiff = today - lastInvoiceDate;
-            const daysInCycle = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-            const daysRemaining = 30 - daysInCycle;
+            const daysRemaining = cycleDays - daysInCycle;
             
             const currentPlan = document.getElementById('currentPlan').value;
             const currentEditors = parseInt(document.getElementById('currentEditors').value);
             const newPlan = document.getElementById('newPlan').value;
             const newEditors = parseInt(document.getElementById('newEditors').value);
-            const newBilling = document.getElementById('newBilling').value;
             
-            const currentPlanName = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1);
-            const newPlanName = newPlan.charAt(0).toUpperCase() + newPlan.slice(1);
+            const currentPlanInfo = planPrices[currentPlan];
+            const newPlanInfo = planPrices[newPlan];
             
+            const currentPlanName = currentPlanInfo.tier.charAt(0).toUpperCase() + currentPlanInfo.tier.slice(1) + ' ' + currentPlanInfo.billing.charAt(0).toUpperCase() + currentPlanInfo.billing.slice(1);
+            const newPlanName = newPlanInfo.tier.charAt(0).toUpperCase() + newPlanInfo.tier.slice(1) + ' ' + newPlanInfo.billing.charAt(0).toUpperCase() + newPlanInfo.billing.slice(1);
+            
+            const lastInvoiceDate = new Date(document.getElementById('lastInvoiceDate').value);
             const nextBillDate = new Date(lastInvoiceDate);
-            nextBillDate.setMonth(nextBillDate.getMonth() + (newBilling === 'annual' ? 12 : 1));
+            if (newPlanInfo.billing === 'annual') {
+                nextBillDate.setFullYear(nextBillDate.getFullYear() + 1);
+            } else {
+                nextBillDate.setMonth(nextBillDate.getMonth() + 1);
+            }
             
-            const creditAmount = currentRate * (daysRemaining / 30);
+            // Use creditInfo if available, otherwise calculate basic credit only for immediate changes
+            let creditAmount = 0;
+            let creditApplied = 0;
+            let remainingCredit = 0;
+            
+            if (creditInfo) {
+                creditAmount = creditInfo.totalCredit;
+                creditApplied = creditInfo.appliedToNewInvoice;
+                remainingCredit = creditInfo.remainingCredit;
+            } else if (timing === 'Takes effect immediately') {
+                creditAmount = currentRate * (daysRemaining / cycleDays);
+                creditApplied = Math.min(creditAmount, immediateCharge);
+                remainingCredit = Math.max(0, creditAmount - creditApplied);
+            }
             
             let warningHtml = '';
             if (isUpgrade) {
@@ -385,23 +435,23 @@
                     <h3>Billing Breakdown</h3>
                     <div class="billing-row">
                         <span>Current cycle progress</span>
-                        <span>${daysInCycle} of 30 days (${daysRemaining} remaining)</span>
+                        <span>${daysInCycle} of ${cycleDays} days (${daysRemaining} remaining)</span>
                     </div>
                 </div>
                 
                 <div class="billing-section">
-                    <h3>Old Plan Cost (monthly)</h3>
+                    <h3>Old Plan Cost (${currentBillingValue})</h3>
                     <div class="billing-row">
-                        <span>${currentEditors} editors × $${planPrices[currentPlan].monthly.toFixed(2)}/editor</span>
+                        <span>${currentEditors} editors × $${currentPlanInfo.price.toFixed(2)}/editor</span>
                         <span class="amount">$${currentRate.toFixed(2)}</span>
                     </div>
                 </div>
                 
                 <div class="billing-section">
-                    <h3>New Plan Cost (${newBilling})</h3>
+                    <h3>New Plan Cost (${newPlanInfo.billing})</h3>
                     <div class="billing-row">
-                        <span>${newEditors} editors × $${(newBilling === 'annual' ? planPrices[newPlan].annual : planPrices[newPlan].monthly * 12).toFixed(2)}/editor</span>
-                        <span class="amount">$${(newBilling === 'annual' ? (planPrices[newPlan].annual * newEditors).toFixed(2) : (planPrices[newPlan].monthly * newEditors * 12).toFixed(2))}</span>
+                        <span>${newEditors} editors × $${newPlanInfo.price.toFixed(2)}/editor</span>
+                        <span class="amount">$${newRate.toFixed(2)}</span>
                     </div>
                 </div>
                 
@@ -409,11 +459,11 @@
                     <h3>Credits</h3>
                     <div class="billing-row">
                         <span>Total credit from unused subscription</span>
-                        <span class="amount negative">$${creditAmount.toFixed(2)}</span>
+                        <span class="amount credit">$${creditAmount.toFixed(2)}</span>
                     </div>
                     <div class="billing-row">
                         <span>Credit applied to new invoice</span>
-                        <span class="amount negative">$${creditAmount.toFixed(2)}</span>
+                        <span class="amount credit">$${creditApplied.toFixed(2)}</span>
                     </div>
                 </div>
                 
@@ -421,7 +471,7 @@
                 
                 <div class="billing-row highlight">
                     <span>Amount due today</span>
-                    <span class="amount large positive">$${immediateCharge.toFixed(2)}</span>
+                    <span class="amount large">$${immediateCharge.toFixed(2)}</span>
                 </div>
                 
                 <div class="billing-section" style="margin-top: 20px;">
@@ -436,11 +486,11 @@
                     </div>
                     <div class="billing-row">
                         <span>Billing frequency</span>
-                        <span>${newBilling.charAt(0).toUpperCase() + newBilling.slice(1)}</span>
+                        <span>${newPlanInfo.billing.charAt(0).toUpperCase() + newPlanInfo.billing.slice(1)}</span>
                     </div>
                     <div class="billing-row">
                         <span>Remaining credit after invoice</span>
-                        <span class="amount negative">$0.00</span>
+                        <span class="amount credit">$${remainingCredit.toFixed(2)}</span>
                     </div>
                 </div>
                 
@@ -457,8 +507,10 @@
             input.value = newValue;
         }
 
-        // Set default last invoice date to August 25, 2025 to match screenshot
-        document.getElementById('lastInvoiceDate').value = '2025-08-25';
+        // Set default last invoice date to 15 days ago
+        const defaultDate = new Date();
+        defaultDate.setDate(defaultDate.getDate() - 15);
+        document.getElementById('lastInvoiceDate').value = defaultDate.toISOString().split('T')[0];
     </script>
 </body>
 </html>
