@@ -264,11 +264,10 @@
                         </div>
                     </div>
                     
-                    <button class="calculate-btn" onclick="calculateCosts()">Calculate Billing Changes</button>
                 </div>
             </div>
             
-            <div class="card results-card" id="results">
+            <div class="card results-card show" id="results">
                 <h2>Billing Calculation Results</h2>
                 <div id="resultsContent"></div>
             </div>
@@ -511,6 +510,25 @@
         const defaultDate = new Date();
         defaultDate.setDate(defaultDate.getDate() - 15);
         document.getElementById('lastInvoiceDate').value = defaultDate.toISOString().split('T')[0];
+        
+        // Add event listeners for real-time calculation
+        const inputs = ['currentPlan', 'currentEditors', 'lastInvoiceDate', 'newPlan', 'newEditors'];
+        inputs.forEach(id => {
+            const element = document.getElementById(id);
+            element.addEventListener('change', calculateCosts);
+            element.addEventListener('input', calculateCosts);
+        });
+        
+        // Add event listeners for counter buttons
+        const counterButtons = document.querySelectorAll('.counter-btn');
+        counterButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                setTimeout(calculateCosts, 0); // Calculate after the value changes
+            });
+        });
+        
+        // Calculate initial values
+        calculateCosts();
     </script>
 </body>
 </html>
